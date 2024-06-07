@@ -9,6 +9,7 @@ authors:
   orcid: "https://orcid.org/0000-0002-9077-9921"
 - family-names: "Zamengo"
   given-names: "Bruno"
+  orcid: "https://orcid.org/0009-0002-0223-9798"
 title: "Mapping Passenger Trajectories to Train Schedules - industrial paper"
 date-released: 2024-06-06
 url: "https://github.com/Silvestri-Lab/TrainPassengerMapping"
