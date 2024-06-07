@@ -1,0 +1,14 @@
+cff-version: 1.2.0
+message: "If you use this datasets, please cite it as below."
+authors:
+- family-names: "Padoan"
+  given-names: "Lorenzo"
+  orcid: "https://orcid.org/0009-0004-1736-7180"
+- family-names: "Silvestri"
+  given-names: "Francesco"
+  orcid: "https://orcid.org/0000-0002-9077-9921"
+- family-names: "Zamengo"
+  given-names: "Bruno"
+title: "Mapping Passenger Trajectories to Train Schedules - industrial paper"
+date-released: 2024-06-06
+url: "https://github.com/Silvestri-Lab/TrainPassengerMapping"
