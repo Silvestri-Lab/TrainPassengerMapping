@@ -24,5 +24,5 @@ Additionally, acknowledge the data source as follows:
 python dataset_generation.py
 ```
 ## License
-This project is licensed under
+This project is licensed under CC BY-NC-SA 4.0. For more information, please refer to the LICENSE file
 
