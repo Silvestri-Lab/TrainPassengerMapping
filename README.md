@@ -13,7 +13,7 @@ This project was developed in collaboration with the [University of Padova](http
 ## Citation
 
 If you use the synthetic dataset or the generation code in your research, please cite the following paper:
-- Lorenzo Padoa, Francesco Silvestri, Bruno Zamengo, "Mapping Passenger Trajectories to Train Schedules - Industrial Paper," ACM SIGSPATIAL, 2024.
+- Lorenzo Padoan, Francesco Silvestri, Bruno Zamengo, "Mapping Passenger Trajectories to Train Schedules - Industrial Paper," ACM SIGSPATIAL, 2024.
 
 Additionally, acknowledge the data source as follows:
 - Data sourced and adapted from [E656](https://www.e656.net/orario/treno/5506.html) under their terms of use.
