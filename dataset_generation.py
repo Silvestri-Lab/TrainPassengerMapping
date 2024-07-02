@@ -253,7 +253,9 @@ insert_noise_time_udf = f.udf(insert_noise_time, ArrayType(IntegerType()))
 
 
 # Read the CSV file
-synthetic_user = spark.read.csv('./synthetic_user_ground_truth_bruno_method.csv', header=True)
+synthetic_user = spark.read.csv('./experiment_synthetic_user_ground_truth_with_change_train.csv', header=True)
+
+df_result_vanilla = spark.read.csv('./synthetic_result_user_vanilla_with_change.csv', header=True).select('IMSI').distinct()
 
 # Process the DataFrame
 sytnethic_user_input_stt = (
@@ -262,11 +264,11 @@ sytnethic_user_input_stt = (
     .withColumnRenamed('station_id', 'STATION')
     .withColumnRenamed('arrivo_teorico', 'DATE_TIME_START')
     .withColumnRenamed('partenza_teorica', 'DATE_TIME_END')
-    .orderBy('IMSI', 'codice_treno', 'stop_order', 'DATE_TIME_START')
+    .orderBy('id', 'codice_treno', 'stop_order', 'DATE_TIME_START')
     .withColumn('delay', f.col('delay').cast('int'))
     .withColumn('DATE_TIME_START', (f.col('DATE_TIME_START') + f.col('delay') * 60).cast('int'))
     .withColumn('DATE_TIME_END', (f.col('DATE_TIME_END') + f.col('delay') * 60).cast('int'))
-    .groupBy('DATE_ID', 'IMSI', 'ORIGIN', 'DESTINATION', 'OD_DATE_TIME_START', 'OD_DATE_TIME_END')
+    .groupBy('DATE_ID', 'id', 'ORIGIN', 'DESTINATION', 'OD_DATE_TIME_START', 'OD_DATE_TIME_END')
     .agg(f.collect_list('STATION').alias('STATIONS'), 
          f.collect_list('DATE_TIME_START').alias('DATES_TIME_START'), 
          f.collect_list('DATE_TIME_END').alias('DATES_TIME_END')) 
@@ -628,3 +630,66 @@ sytnethic_user_input_stt = (
 
 sytnethic_user_input_stt.toPandas().to_csv('input_user_stt_synthetic_witch_change_noise_only_spatial_(add_noise_stations).csv', index=False)
 
+### Synthetic users with train transfer COMBINED NOISE
+
+# Read the ground truth data
+synthetic_user = spark.read.csv('./experiment_synthetic_user_ground_truth_with_change_train.csv', header=True)
+
+# Define the function to insert noise stations and times
+def insert_noise_station(stations, idx, noise_flag):
+    if noise_flag and idx != 0 and idx < len(stations):
+        random_station = -7
+        stations.insert(idx, random_station)
+    return stations
+
+def insert_noise_time(time, idx, noise_flag):
+    if noise_flag and idx != 0 and idx < len(time):
+        time_to_insert = int((time[idx - 1] + time[idx]) / 2)
+        time.insert(idx, time_to_insert)
+    return time
+
+# Register the UDF
+insert_noise_station_udf = f.udf(insert_noise_station, ArrayType(IntegerType()))
+insert_noise_time_udf = f.udf(insert_noise_time, ArrayType(IntegerType()))
+
+# Window specifications
+window_noiser = Window.partitionBy('id', 'codice_treno').orderBy(f.rand())
+window_partition = Window.partitionBy("id").orderBy("arrivo_teorico")
+
+# Create synthetic users with combined noise
+sytnethic_user_input_stt_combined_noise = (
+    synthetic_user
+    .withColumn('DATE_ID', f.date_format(f.to_date(f.lit(datetime.datetime.now())), 'yyyyMMdd'))
+    .withColumnRenamed('station_id', 'STATION')
+    .withColumnRenamed('arrivo_teorico', 'DATE_TIME_START')
+    .withColumnRenamed('partenza_teorica', 'DATE_TIME_END')
+    .orderBy('id', 'codice_treno', 'stop_order', 'DATE_TIME_START')
+    .withColumn('delay', f.col('delay').cast('int'))
+    .withColumn('DATE_TIME_START', (f.col('DATE_TIME_START') + f.col('delay') * 60).cast('int'))
+    .withColumn('DATE_TIME_END', (f.col('DATE_TIME_END') + f.col('delay') * 60).cast('int'))
+    .groupBy('DATE_ID', 'id', 'ORIGIN', 'DESTINATION', 'OD_DATE_TIME_START', 'OD_DATE_TIME_END')
+    .agg(f.collect_list('STATION').alias('STATIONS'),
+         f.collect_list('DATE_TIME_START').alias('DATES_TIME_START'),
+         f.collect_list('DATE_TIME_END').alias('DATES_TIME_END'))
+    .withColumn('NOISE', f.rand() <= 0.5)
+    .withColumn('idx', f.floor(f.rand() * f.size(f.col('STATIONS'))).cast('int'))
+    .withColumn('STATIONS', f.col('STATIONS').cast(ArrayType(IntegerType())))
+    .withColumn('STATIONS', insert_noise_station_udf(f.col('STATIONS'), f.col('idx'), f.col('NOISE')))
+    .withColumn('DATES_TIME_START', f.col('DATES_TIME_START').cast(ArrayType(IntegerType())))
+    .withColumn('DATES_TIME_START', insert_noise_time_udf(f.col('DATES_TIME_START'), f.col('idx'), f.col('NOISE')))
+    .withColumn('DATES_TIME_END', f.col('DATES_TIME_END').cast(ArrayType(IntegerType())))
+    .withColumn('DATES_TIME_END', insert_noise_time_udf(f.col('DATES_TIME_END'), f.col('idx'), f.col('NOISE')))
+    .withColumn('STATIONS', f.concat_ws('|', 'STATIONS'))
+    .withColumn('DATES_TIME_START', f.concat_ws('|', 'DATES_TIME_START'))
+    .withColumn('DATES_TIME_END', f.concat_ws('|', 'DATES_TIME_END'))
+    .withColumnRenamed('STATIONS', 'STATIONS_ALL')
+    .withColumnRenamed('DATES_TIME_START', 'DATES_TIME_START_ALL')
+    .withColumnRenamed('DATES_TIME_END', 'DATES_TIME_END_ALL')
+    .dropDuplicates(['id', 'ORIGIN', 'DESTINATION'])
+    .limit(10000)
+    .repartition(1)
+    .cache()
+)
+
+# Save the result to CSV
+sytnethic_user_input_stt_combined_noise.toPandas().to_csv('experiment_input_user_stt_synthetic_with_change_noise_combined.csv', index=False)
